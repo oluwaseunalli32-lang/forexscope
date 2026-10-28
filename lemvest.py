@@ -1,12 +1,5 @@
 """
 Lemvest — a simple Telegram education bot for forex, gold, and bitcoin basics.
-
-Purpose: guide users through 5 short beginner lessons and redirect them
-to the Lemvest Telegram channel.
-
-Runs as a Render Background Worker using long polling (no web server).
-
-python-telegram-bot==21.6
 """
 
 import asyncio
@@ -34,8 +27,6 @@ from telegram.helpers import escape_markdown
 # ---------------------------------------------------------------------------
 # Defensive asyncio event loop guard
 # ---------------------------------------------------------------------------
-# Python 3.12+ no longer auto-creates an event loop for get_event_loop().
-# On 3.14 it raises RuntimeError. We create one explicitly if needed.
 try:
     asyncio.get_event_loop()
 except RuntimeError:
@@ -43,18 +34,15 @@ except RuntimeError:
     print("ℹ️ Created a new asyncio event loop.", flush=True)
 
 # ---------------------------------------------------------------------------
-# Configuration (all secrets come from environment variables)
+# Configuration
 # ---------------------------------------------------------------------------
-
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 
-# Falls back to the provided channel link if the env var is not set.
 CHANNEL_URL = os.environ.get(
     "CHANNEL_URL",
     "https://t.me/+_uVZZCHw7U1lMGZk",
 )
 
-# Required on the welcome message and every lesson.
 DISCLAIMER = (
     "⚠️ Educational content only, not financial advice. "
     "Forex trading carries a high risk of loss."
@@ -63,14 +51,12 @@ DISCLAIMER = (
 # ---------------------------------------------------------------------------
 # Logging
 # ---------------------------------------------------------------------------
-
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     level=logging.INFO,
 )
 logger = logging.getLogger("lemvest")
 
-# Make stdout line-buffered so Render streams logs immediately.
 try:
     sys.stdout.reconfigure(line_buffering=True)
 except Exception:
@@ -79,7 +65,6 @@ except Exception:
 # ---------------------------------------------------------------------------
 # Lesson content
 # ---------------------------------------------------------------------------
-
 LESSONS = {
     "pips": {
         "title": "📏 Pips",
@@ -142,7 +127,6 @@ LESSONS = {
 # ---------------------------------------------------------------------------
 # Keyboards
 # ---------------------------------------------------------------------------
-
 def start_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("🎓 Start Learning", callback_data="back:lessons")],
@@ -181,9 +165,7 @@ def channel_only_keyboard() -> InlineKeyboardMarkup:
 # ---------------------------------------------------------------------------
 # Background Job (4h Reminder)
 # ---------------------------------------------------------------------------
-
 async def send_reminder(context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Sends the 4-hour reminder to join the channel."""
     job = context.job
     text = (
         "👋 Just a quick reminder! Have you joined the Lemvest channel yet?\n\n"
@@ -199,15 +181,12 @@ async def send_reminder(context: ContextTypes.DEFAULT_TYPE) -> None:
         )
         logger.info(f"Sent 4h reminder to chat {job.chat_id}")
     except Exception as e:
-        # Handle cases where the user blocked the bot before the reminder fired
         logger.warning(f"Could not send reminder to {job.chat_id}: {e}")
 
 # ---------------------------------------------------------------------------
 # Command handlers
 # ---------------------------------------------------------------------------
-
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """/start — welcome message and schedules the 4h reminder."""
     user = update.effective_user
     chat_id = update.effective_chat.id
     raw_name = (user.first_name if user and user.first_name else "there")
@@ -228,23 +207,19 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     )
 
     # Schedule the 4-hour reminder.
-    # We use the chat_id as the job name to prevent duplicate reminders
-    # if the user spams /start.
     job_name = f"reminder_{chat_id}"
     current_jobs = context.job_queue.get_jobs_by_name(job_name)
     
     if not current_jobs:
         context.job_queue.run_once(
             send_reminder,
-            when=4 * 3600,  # 4 hours in seconds
+            when=4 * 3600,  # 4 hours
             chat_id=chat_id,
             name=job_name,
         )
         logger.info(f"Scheduled 4h reminder for chat {chat_id}")
 
-
 async def learn(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """/learn — show the 5 lesson buttons."""
     text = (
         "📚 *Lemvest — Lessons*\n\n"
         "Pick a topic below to start learning.\n\n"
@@ -257,7 +232,6 @@ async def learn(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     )
 
 async def channel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """/channel — direct user to the Lemvest channel."""
     text = (
         "Tap the button below to join the Lemvest channel for more "
         "beginner-friendly lessons.\n\n"
@@ -270,7 +244,6 @@ async def channel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     )
 
 async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """/help — list available commands."""
     text = (
         "*Lemvest — Commands*\n\n"
         "/start — Welcome message\n"
@@ -282,7 +255,6 @@ async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(text, parse_mode=ParseMode.MARKDOWN)
 
 async def fallback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Any other text message — short reply pointing to /learn and the channel."""
     text = (
         "I am here to teach — not to trade. 🙂\n\n"
         "Try /learn to browse lessons, or tap below to join the channel.\n\n"
@@ -295,11 +267,9 @@ async def fallback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     )
 
 # ---------------------------------------------------------------------------
-# Callback query handler (lesson buttons + back button)
+# Callback query handler
 # ---------------------------------------------------------------------------
-
 async def on_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle taps on inline buttons."""
     query = update.callback_query
     await query.answer()
     data = query.data or ""
@@ -344,9 +314,7 @@ async def on_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 # ---------------------------------------------------------------------------
 # Global error handler
 # ---------------------------------------------------------------------------
-
 async def on_error(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Log any unhandled exception and notify the user without crashing."""
     logger.error("Exception while handling update:", exc_info=context.error)
     try:
         if isinstance(update, Update) and update.effective_message:
@@ -359,7 +327,6 @@ async def on_error(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
-
 def main() -> None:
     if not BOT_TOKEN:
         print(
@@ -369,8 +336,7 @@ def main() -> None:
         )
         sys.exit(1)
 
-    print("🚀 Starting Lemvest bot (python-telegram-bot 21.6)...", flush=True)
-    print(f"📢 Channel URL: {CHANNEL_URL}", flush=True)
+    print("🚀 Starting Lemvest bot...", flush=True)
 
     application: Application = ApplicationBuilder().token(BOT_TOKEN).build()
 
@@ -383,7 +349,7 @@ def main() -> None:
     # Inline button handler
     application.add_handler(CallbackQueryHandler(on_callback))
 
-    # Any other text message (not a command)
+    # Any other text message
     application.add_handler(
         MessageHandler(filters.TEXT & ~filters.COMMAND, fallback)
     )
@@ -391,10 +357,9 @@ def main() -> None:
     # Global error handler
     application.add_error_handler(on_error)
 
-    print("✅ Handlers registered: /start /learn /channel /help", flush=True)
+    print("✅ Handlers registered.", flush=True)
     print("⏳ Polling for updates...", flush=True)
 
-    # run_polling automatically passes a JobQueue instance for background tasks
     application.run_polling(
         allowed_updates=Update.ALL_TYPES,
         drop_pending_updates=True,
