@@ -79,7 +79,6 @@ except Exception:
 # ---------------------------------------------------------------------------
 # Lesson content
 # ---------------------------------------------------------------------------
-# Written to be neutral and beginner-friendly. No profit promises, no hype.
 
 LESSONS = {
     "pips": {
@@ -145,15 +144,12 @@ LESSONS = {
 # ---------------------------------------------------------------------------
 
 def start_keyboard() -> InlineKeyboardMarkup:
-    """Two-button keyboard shown on /start."""
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("🎓 Start Learning", callback_data="back:lessons")],
         [InlineKeyboardButton("📢 Join Lemvest Channel", url=CHANNEL_URL)],
     ])
 
-
 def learn_keyboard() -> InlineKeyboardMarkup:
-    """Five lesson buttons plus the channel button."""
     return InlineKeyboardMarkup([
         [
             InlineKeyboardButton("📏 Pips", callback_data="lesson:pips"),
@@ -171,31 +167,50 @@ def learn_keyboard() -> InlineKeyboardMarkup:
         ],
     ])
 
-
 def lesson_keyboard() -> InlineKeyboardMarkup:
-    """Channel button + back button shown on every lesson page."""
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("📢 Join Lemvest Channel", url=CHANNEL_URL)],
         [InlineKeyboardButton("📚 More Lessons", callback_data="back:lessons")],
     ])
 
-
 def channel_only_keyboard() -> InlineKeyboardMarkup:
-    """Just the channel button (used on /channel and fallback replies)."""
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("📢 Join Lemvest Channel", url=CHANNEL_URL)],
     ])
 
+# ---------------------------------------------------------------------------
+# Background Job (4h Reminder)
+# ---------------------------------------------------------------------------
+
+async def send_reminder(context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Sends the 4-hour reminder to join the channel."""
+    job = context.job
+    text = (
+        "👋 Just a quick reminder! Have you joined the Lemvest channel yet?\n\n"
+        "We share beginner-friendly insights there.\n\n"
+        f"{DISCLAIMER}"
+    )
+    try:
+        await context.bot.send_message(
+            chat_id=job.chat_id,
+            text=text,
+            parse_mode=ParseMode.MARKDOWN,
+            reply_markup=channel_only_keyboard(),
+        )
+        logger.info(f"Sent 4h reminder to chat {job.chat_id}")
+    except Exception as e:
+        # Handle cases where the user blocked the bot before the reminder fired
+        logger.warning(f"Could not send reminder to {job.chat_id}: {e}")
 
 # ---------------------------------------------------------------------------
 # Command handlers
 # ---------------------------------------------------------------------------
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """/start — welcome message with the user's first name."""
+    """/start — welcome message and schedules the 4h reminder."""
     user = update.effective_user
+    chat_id = update.effective_chat.id
     raw_name = (user.first_name if user and user.first_name else "there")
-    # Escape in case a user's first name contains Markdown characters.
     safe_name = escape_markdown(raw_name, version=1)
 
     text = (
@@ -205,11 +220,27 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "Use the buttons below to start learning or join the channel.\n\n"
         f"{DISCLAIMER}"
     )
+    
     await update.message.reply_text(
         text,
         parse_mode=ParseMode.MARKDOWN,
         reply_markup=start_keyboard(),
     )
+
+    # Schedule the 4-hour reminder.
+    # We use the chat_id as the job name to prevent duplicate reminders
+    # if the user spams /start.
+    job_name = f"reminder_{chat_id}"
+    current_jobs = context.job_queue.get_jobs_by_name(job_name)
+    
+    if not current_jobs:
+        context.job_queue.run_once(
+            send_reminder,
+            when=4 * 3600,  # 4 hours in seconds
+            chat_id=chat_id,
+            name=job_name,
+        )
+        logger.info(f"Scheduled 4h reminder for chat {chat_id}")
 
 
 async def learn(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -225,7 +256,6 @@ async def learn(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         reply_markup=learn_keyboard(),
     )
 
-
 async def channel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """/channel — direct user to the Lemvest channel."""
     text = (
@@ -239,7 +269,6 @@ async def channel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         reply_markup=channel_only_keyboard(),
     )
 
-
 async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """/help — list available commands."""
     text = (
@@ -251,7 +280,6 @@ async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         f"{DISCLAIMER}"
     )
     await update.message.reply_text(text, parse_mode=ParseMode.MARKDOWN)
-
 
 async def fallback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Any other text message — short reply pointing to /learn and the channel."""
@@ -266,7 +294,6 @@ async def fallback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         reply_markup=channel_only_keyboard(),
     )
 
-
 # ---------------------------------------------------------------------------
 # Callback query handler (lesson buttons + back button)
 # ---------------------------------------------------------------------------
@@ -274,10 +301,9 @@ async def fallback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 async def on_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle taps on inline buttons."""
     query = update.callback_query
-    await query.answer()  # acknowledge the tap so Telegram stops the spinner
+    await query.answer()
     data = query.data or ""
 
-    # "Start Learning" on /start, or "More Lessons" on a lesson page.
     if data == "back:lessons":
         text = (
             "📚 *Lemvest — Lessons*\n\n"
@@ -291,7 +317,6 @@ async def on_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                 reply_markup=learn_keyboard(),
             )
         except Exception:
-            # If the edit fails (e.g. identical content), send a fresh message.
             await query.message.reply_text(
                 text,
                 parse_mode=ParseMode.MARKDOWN,
@@ -299,7 +324,6 @@ async def on_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             )
         return
 
-    # A specific lesson button.
     if data.startswith("lesson:"):
         key = data.split(":", 1)[1]
         lesson = LESSONS.get(key)
@@ -315,9 +339,7 @@ async def on_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         )
         return
 
-    # Unknown callback — ignore politely.
     logger.warning("Unknown callback data: %r", data)
-
 
 # ---------------------------------------------------------------------------
 # Global error handler
@@ -333,7 +355,6 @@ async def on_error(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
             )
     except Exception:
         logger.exception("Failed to send error reply.")
-
 
 # ---------------------------------------------------------------------------
 # Entry point
@@ -373,11 +394,11 @@ def main() -> None:
     print("✅ Handlers registered: /start /learn /channel /help", flush=True)
     print("⏳ Polling for updates...", flush=True)
 
+    # run_polling automatically passes a JobQueue instance for background tasks
     application.run_polling(
         allowed_updates=Update.ALL_TYPES,
         drop_pending_updates=True,
     )
-
 
 if __name__ == "__main__":
     main()
