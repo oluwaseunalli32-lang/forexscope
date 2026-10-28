@@ -1,23 +1,15 @@
-# render.yaml — Render.com service declaration
-# Documentation: https://render.com/docs/blueprint-spec
-
 services:
-  - type: worker                     # Background Worker (not a web service)
-    name: forexscope-bot
+  - type: worker
+    name: lemvest-bot
     runtime: python
-    pythonVersion: "3.12"            # Matches runtime.txt
-
     buildCommand: pip install -r requirements.txt
-    startCommand: python forexscope_bot.py
-
-    plan: free                       # Free tier for testing; upgrade for 24/7
-    region: oregon                   # Change to your preferred region
-
+    startCommand: python lemvest.py
+    plan: free
+    region: oregon
     envVars:
-      - key: TELEGRAM_BOT_TOKEN
-        sync: false                  # Prompted at deploy time; never stored in Git
-        description: "Bot token from @BotFather"
-
-      # Optional: pin the Python version as an env var for extra safety.
       - key: PYTHON_VERSION
-        value: "3.12.0"
+        value: "3.12.8"
+      - key: BOT_TOKEN
+        sync: false
+      - key: CHANNEL_URL
+        value: "https://t.me/+_uVZZCHw7U1lMGZk"
