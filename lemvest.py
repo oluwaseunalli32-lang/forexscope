@@ -9,6 +9,7 @@ Runs as a Render Background Worker using long polling (no web server).
 python-telegram-bot==21.6
 """
 
+import asyncio
 import logging
 import os
 import sys
@@ -29,6 +30,17 @@ from telegram.ext import (
     filters,
 )
 from telegram.helpers import escape_markdown
+
+# ---------------------------------------------------------------------------
+# Defensive asyncio event loop guard
+# ---------------------------------------------------------------------------
+# Python 3.12+ no longer auto-creates an event loop for get_event_loop().
+# On 3.14 it raises RuntimeError. We create one explicitly if needed.
+try:
+    asyncio.get_event_loop()
+except RuntimeError:
+    asyncio.set_event_loop(asyncio.new_event_loop())
+    print("ℹ️ Created a new asyncio event loop.", flush=True)
 
 # ---------------------------------------------------------------------------
 # Configuration (all secrets come from environment variables)
