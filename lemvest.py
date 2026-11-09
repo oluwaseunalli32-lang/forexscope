@@ -1,5 +1,5 @@
 """
-Lemvest — Forex Funnel Bot (Portuguese Version)
+Lemvest — Forex Funnel Bot (Portuguese Version + User Tracking)
 """
 
 import asyncio
@@ -7,6 +7,7 @@ import logging
 import os
 import sys
 import random
+import json
 
 from telegram import (
     InlineKeyboardButton,
@@ -36,11 +37,15 @@ except RuntimeError:
 # Configuration
 # ---------------------------------------------------------------------------
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
+ADMIN_ID = os.environ.get("ADMIN_ID") # Needed for the /users command
 
 CHANNEL_URL = os.environ.get(
     "CHANNEL_URL",
     "https://t.me/+RxOYpIb69gs1MWUx",
 )
+
+# File to store users
+USERS_FILE = "users.json"
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -57,7 +62,28 @@ except Exception:
     pass
 
 # ---------------------------------------------------------------------------
-# Image Proof Content (Translated to Portuguese)
+# User Database Functions
+# ---------------------------------------------------------------------------
+def load_users() -> dict:
+    """Loads users from the JSON file."""
+    if os.path.exists(USERS_FILE):
+        try:
+            with open(USERS_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception as e:
+            logger.error(f"Error loading users: {e}")
+    return {}
+
+def save_users(users: dict) -> None:
+    """Saves users to the JSON file."""
+    try:
+        with open(USERS_FILE, "w", encoding="utf-8") as f:
+            json.dump(users, f, indent=4)
+    except Exception as e:
+        logger.error(f"Error saving users: {e}")
+
+# ---------------------------------------------------------------------------
+# Image Proof Content
 # ---------------------------------------------------------------------------
 PROOFS = [
     {
@@ -124,7 +150,19 @@ async def send_proof(context: ContextTypes.DEFAULT_TYPE) -> None:
 # ---------------------------------------------------------------------------
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_id = update.effective_chat.id
+    user = update.effective_user
     
+    # Save user to database
+    users = load_users()
+    # We use string for ID because JSON keys must be strings
+    if str(user.id) not in users:
+        users[str(user.id)] = {
+            "username": user.username if user.username else "Sem_Username",
+            "first_name": user.first_name if user.first_name else "Desconhecido"
+        }
+        save_users(users)
+        logger.info(f"Novo usuário registrado: {user.id}")
+
     # 1. Send the initial hook message (NO BUTTON)
     msg1 = await update.message.reply_text(
         "Você está a um passo de pagar todas as suas dívidas e deixar de ser um "
@@ -139,7 +177,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     try:
         await msg1.delete()
     except Exception:
-        pass # Ignore if already deleted
+        pass
         
     # 4. Send the countdown message (WITH BUTTON)
     msg2 = await update.message.reply_text(
@@ -147,7 +185,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         reply_markup=join_keyboard()
     )
     
-    # Run the 5-second countdown by editing the message every second
+    # Run the 5-second countdown
     for i in range(4, 0, -1):
         await asyncio.sleep(1)
         await msg2.edit_text(
@@ -178,6 +216,31 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         )
         logger.info(f"Scheduled 3h proof loop for chat {chat_id}")
 
+async def list_users(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Admin command to list all users."""
+    # Check if the person running the command is the admin
+    if not ADMIN_ID or str(update.effective_user.id) != ADMIN_ID:
+        await update.message.reply_text("Acesso negado.")
+        return
+
+    users = load_users()
+    if not users:
+        await update.message.reply_text("Nenhum usuário registrado ainda.")
+        return
+
+    lines = [f"👥 *Total de Usuários: {len(users)}*\n"]
+    for uid, data in users.items():
+        username = f"@{data['username']}" if data['username'] != "Sem_Username" else "Sem @"
+        lines.append(f"• {data['first_name']} ({username}) | ID: `{uid}`")
+
+    text = "\n".join(lines)
+    
+    # Telegram has a 4096 character limit per message
+    if len(text) > 4000:
+        text = text[:4000] + "\n\n... (lista muito longa, truncada)"
+        
+    await update.message.reply_text(text, parse_mode=ParseMode.MARKDOWN)
+
 async def fallback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(
         "Não perca os lucros mais fáceis da sua vida. Entre no canal abaixo agora! 👇",
@@ -203,6 +266,7 @@ def main() -> None:
     application: Application = ApplicationBuilder().token(BOT_TOKEN).build()
 
     application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("users", list_users)) # Added /users
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, fallback))
     application.add_error_handler(on_error)
 
