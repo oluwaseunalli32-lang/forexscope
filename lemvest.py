@@ -37,7 +37,6 @@ except RuntimeError:
 # ---------------------------------------------------------------------------
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 
-# Updated to the new channel link you provided
 CHANNEL_URL = os.environ.get(
     "CHANNEL_URL",
     "https://t.me/+RxOYpIb69gs1MWUx",
@@ -60,7 +59,6 @@ except Exception:
 # ---------------------------------------------------------------------------
 # Image Proof Content
 # ---------------------------------------------------------------------------
-# These match the images you provided. Make sure they are in the /images/ folder.
 PROOFS = [
     {
         "img": "images/forexa1.jpg",
@@ -88,7 +86,6 @@ PROOFS = [
 # Keyboards
 # ---------------------------------------------------------------------------
 def join_keyboard() -> InlineKeyboardMarkup:
-    """The single JOIN NOW button used everywhere."""
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("👉 JOIN NOW", url=CHANNEL_URL)]
     ])
@@ -97,17 +94,13 @@ def join_keyboard() -> InlineKeyboardMarkup:
 # Background Job (3-hour proof sender)
 # ---------------------------------------------------------------------------
 async def send_proof(context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Sends a random screenshot and caption every 3 hours."""
     job = context.job
     chat_id = job.chat_id
     
-    # Pick a random image from our list
     proof = random.choice(PROOFS)
-    
     text = f"{proof['caption']}\n\nStart your journey today 👇"
     
     try:
-        # Open the image file from the local directory
         with open(proof["img"], "rb") as photo:
             await context.bot.send_photo(
                 chat_id=chat_id,
@@ -118,7 +111,6 @@ async def send_proof(context: ContextTypes.DEFAULT_TYPE) -> None:
         logger.info(f"Sent 3h proof image {proof['img']} to chat {chat_id}")
     except FileNotFoundError:
         logger.error(f"Missing image file: {proof['img']}. Check your GitHub repo.")
-        # Fallback to text if the image is missing
         await context.bot.send_message(
             chat_id=chat_id,
             text=text,
@@ -131,27 +123,25 @@ async def send_proof(context: ContextTypes.DEFAULT_TYPE) -> None:
 # Command handlers
 # ---------------------------------------------------------------------------
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """/start — High-pressure funnel with countdown and 3h scheduler."""
     chat_id = update.effective_chat.id
     
-    # 1. Send the initial hook message
+    # 1. Send the initial hook message (NO BUTTON)
     msg1 = await update.message.reply_text(
         "You're one step away from paying off all your debt and going from a "
         "newbie to a professional Forex trader, this way you can quit your day "
-        "job and trade full time.",
-        reply_markup=join_keyboard()
+        "job and trade full time."
     )
     
-    # Wait 3 seconds so they can read it
-    await asyncio.sleep(3)
+    # 2. Wait 10 seconds for them to read it
+    await asyncio.sleep(10)
     
-    # 2. Delete the first message
+    # 3. Delete the first message
     try:
         await msg1.delete()
     except Exception:
         pass # Ignore if already deleted
         
-    # 3. Send the countdown message
+    # 4. Send the countdown message (WITH BUTTON)
     msg2 = await update.message.reply_text(
         "Join Now before the links expire in 5 seconds and you will miss out!!!!! ⏳ 5",
         reply_markup=join_keyboard()
@@ -174,7 +164,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         reply_markup=join_keyboard()
     )
 
-    # 4. Schedule the 3-hour background timer
+    # 5. Schedule the 3-hour background timer
     job_name = f"proof_{chat_id}"
     current_jobs = context.job_queue.get_jobs_by_name(job_name)
     
@@ -189,7 +179,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         logger.info(f"Scheduled 3h proof loop for chat {chat_id}")
 
 async def fallback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Any other text message — pushes them to join."""
     await update.message.reply_text(
         "Don't miss out on the easiest profits of your life. Join the channel below now! 👇",
         reply_markup=join_keyboard(),
@@ -213,7 +202,6 @@ def main() -> None:
 
     application: Application = ApplicationBuilder().token(BOT_TOKEN).build()
 
-    # Handlers
     application.add_handler(CommandHandler("start", start))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, fallback))
     application.add_error_handler(on_error)
