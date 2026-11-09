@@ -1,5 +1,5 @@
 """
-Lemvest — Forex Funnel Bot
+Lemvest — Forex Funnel Bot (Portuguese Version)
 """
 
 import asyncio
@@ -57,28 +57,28 @@ except Exception:
     pass
 
 # ---------------------------------------------------------------------------
-# Image Proof Content
+# Image Proof Content (Translated to Portuguese)
 # ---------------------------------------------------------------------------
 PROOFS = [
     {
         "img": "images/forexa1.jpg",
-        "caption": "Thank you so much, Secret! 🙏 I'm really enjoying the results. You're amazing, man! Your EA has been helping me a lot ❤️"
+        "caption": "Muito obrigado, Secret! 🙏 Estou realmente gostando dos resultados. Você é incrível, cara! Seu EA tem me ajudado muito ❤️"
     },
     {
         "img": "images/forexa2.jpg",
-        "caption": "Profit after 2 days. This was a standard account with 50 euro and 50 broker bonus. 🚀🔥"
+        "caption": "Lucro após 2 dias. Esta era uma conta padrão com 50 euros e 50 de bônus da corretora. 🚀🔥"
     },
     {
         "img": "images/forexa3.jpg",
-        "caption": "Brother, today was one of those days that's great to see 😮‍💨 I set it up last night, and the results came naturally today. I'm really enjoying this EA, thanks for the partnership! 💪"
+        "caption": "Irmão, hoje foi um daqueles dias que é ótimo de ver 😮‍💨 Configurei ontem à noite, e os resultados vieram naturalmente hoje. Estou realmente gostando deste EA, obrigado pela parceria! 💪"
     },
     {
         "img": "images/forexa4.jpg",
-        "caption": "More than 2,000 in profit, I was honestly speechless. Honestly, I wasn't expecting a result like this. I'm really impressed with the EA 🤯"
+        "caption": "Mais de 2.000 de lucro, eu honestamente fiquei sem palavras. Sinceramente, eu não esperava um resultado desses. Estou muito impressionado com o EA 🤯"
     },
     {
         "img": "images/forexa5.jpg",
-        "caption": "Today, I didn't really keep a close eye on it, haha. I checked the account after a while and I already have $2,525. Thank you, Secret, you are blessed 🙏🙏🙏"
+        "caption": "Hoje, eu não fiquei realmente de olho nisso, haha. Verifiquei a conta depois de um tempo e já tenho $2.525. Obrigado, Secret, você é abençoado 🙏🙏🙏"
     }
 ]
 
@@ -87,7 +87,7 @@ PROOFS = [
 # ---------------------------------------------------------------------------
 def join_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("👉 JOIN NOW", url=CHANNEL_URL)]
+        [InlineKeyboardButton("👉 ENTRAR AGORA", url=CHANNEL_URL)]
     ])
 
 # ---------------------------------------------------------------------------
@@ -98,7 +98,7 @@ async def send_proof(context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_id = job.chat_id
     
     proof = random.choice(PROOFS)
-    text = f"{proof['caption']}\n\nStart your journey today 👇"
+    text = f"{proof['caption']}\n\nComece sua jornada hoje 👇"
     
     try:
         with open(proof["img"], "rb") as photo:
@@ -127,9 +127,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     
     # 1. Send the initial hook message (NO BUTTON)
     msg1 = await update.message.reply_text(
-        "You're one step away from paying off all your debt and going from a "
-        "newbie to a professional Forex trader, this way you can quit your day "
-        "job and trade full time."
+        "Você está a um passo de pagar todas as suas dívidas e deixar de ser um "
+        "iniciante para se tornar um trader profissional de Forex. Dessa forma, "
+        "você pode largar seu emprego e operar em tempo integral."
     )
     
     # 2. Wait 10 seconds for them to read it
@@ -143,7 +143,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         
     # 4. Send the countdown message (WITH BUTTON)
     msg2 = await update.message.reply_text(
-        "Join Now before the links expire in 5 seconds and you will miss out!!!!! ⏳ 5",
+        "Entre agora antes que os links expirem em 5 segundos e você perca a chance!!!!! ⏳ 5",
         reply_markup=join_keyboard()
     )
     
@@ -151,7 +151,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     for i in range(4, 0, -1):
         await asyncio.sleep(1)
         await msg2.edit_text(
-            f"Join Now before the links expire in {i} seconds and you will miss out!!!!! ⏳ {i}",
+            f"Entre agora antes que os links expirem em {i} segundos e você perca a chance!!!!! ⏳ {i}",
             reply_markup=join_keyboard()
         )
         
@@ -159,8 +159,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     
     # Final countdown message
     await msg2.edit_text(
-        "⚠️ TIME IS RUNNING OUT!\n\n"
-        "Stop wasting time. Join the Secret EA community now and start seeing results.",
+        "⚠️ O TEMPO ESTÁ ACABANDO!\n\n"
+        "Pare de perder tempo. Entre na comunidade Secret EA agora e comece a ver resultados.",
         reply_markup=join_keyboard()
     )
 
@@ -180,7 +180,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 async def fallback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(
-        "Don't miss out on the easiest profits of your life. Join the channel below now! 👇",
+        "Não perca os lucros mais fáceis da sua vida. Entre no canal abaixo agora! 👇",
         reply_markup=join_keyboard(),
     )
 
